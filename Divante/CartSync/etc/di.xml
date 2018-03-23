@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?><!--
+/**
+ * @author         Mateusz Bukowski
+ * @package        Divante/CartSync
+ * @copyright      Copyright(C) 2018 Divante
+ * @license        See LICENSE.txt for license details.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Divante\CartSync\Service\SyncInterface" type="Divante\CartSync\Service\Sync"/>
+</config>
