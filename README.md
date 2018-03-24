@@ -27,3 +27,6 @@ where
 * `s7nirf24cxro7qx1hb9uujaq4jx97nvp` is a customer token provided by [`POST /V1/integration/customer/token`](http://devdocs.magento.com/guides/v2.0/get-started/authentication/gs-authentication-token.html) or can be empty!
 * `3648` is a quote id; for guest-carts it will be not integer but guid string
 
+## Credits
+
+Mateusz Bukowski (@gatzzu)
