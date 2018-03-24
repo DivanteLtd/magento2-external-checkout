@@ -6,6 +6,8 @@ This module is designed to work with: [Vue Storefront External Checkout](https:/
 
 This extension allows the user to start the session within the Vue Storefront shop and finalize the order in Magento2. It's great when You have very extended/customized Magento checkout which will be hard to port to Vue Storefront.
 
+![External checkout for Vue Storefront](https://github.com/filrak/vsf-external-checkout/raw/master/diagram.png)
+
 ## Demo
 You can check this extension in action on: https://demo-magento-checkout.vuestorefront.io
 Please add some items to the cart and then go to **Cart -> Go to chechkout**. You will be redirected to the [Magento2 instance](http://demo-magento2.vuestorefront.io/) synchronized with the [Vue Storefront instance](demo-magento-checkout.vuestorefront.io). Shopping carts, logged in user, totals, item prices - should be alligned.
