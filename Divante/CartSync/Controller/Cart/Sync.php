@@ -43,10 +43,6 @@ class Sync extends Action
      */
     private $logger;
     /**
-     * @var JsonFactory
-     */
-    private $resultJsonFactory;
-    /**
      * @var TokenFactory
      */
     private $tokenFactory;
@@ -61,7 +57,6 @@ class Sync extends Action
      * @param Context                     $context
      * @param CustomerRepositoryInterface $customerRepository
      * @param CustomerSession             $customerSession
-     * @param JsonFactory                 $resultJsonFactory
      * @param SyncInterface               $sync
      * @param SyncLoggerFactory           $syncLoggerFactory
      * @param TokenFactory                $tokenFactory
@@ -72,7 +67,6 @@ class Sync extends Action
         Context $context,
         CustomerRepositoryInterface $customerRepository,
         CustomerSession $customerSession,
-        JsonFactory $resultJsonFactory,
         SyncInterface $sync,
         SyncLoggerFactory $syncLoggerFactory,
         TokenFactory $tokenFactory
@@ -85,8 +79,7 @@ class Sync extends Action
         $this->tokenFactory       = $tokenFactory;
         $this->sync               = $sync;
 
-        $this->logger            = $syncLoggerFactory->create();
-        $this->resultJsonFactory = $resultJsonFactory;
+        $this->logger = $syncLoggerFactory->create();
     }
 
     /**
@@ -105,6 +98,8 @@ class Sync extends Action
             $result = $this->sync->synchronizeGuestCart($cartId);
 
             if (!$result) {
+                $this->messageManager->addErrorMessage(__('Cannot synchronize guest cart'));
+
                 return $this->resultRedirectFactory->create()->setPath('checkout/cart');
             }
         } else {
@@ -112,6 +107,8 @@ class Sync extends Action
             $token = $this->tokenFactory->create()->loadByToken($customerToken);
 
             if (!$this->isTokenValid($token)) {
+                $this->messageManager->addErrorMessage(__('Invalid token'));
+
                 return $this->resultRedirectFactory->create()->setPath('checkout/cart');
             }
 
@@ -139,9 +136,13 @@ class Sync extends Action
                 } catch (NoSuchEntityException $e) {
                     $this->logger->addError($e->getMessage());
 
+                    $this->messageManager->addErrorMessage(__('Required customer doesn\'t exist'));
+
                     return $this->resultRedirectFactory->create()->setPath('checkout/cart');
                 } catch (LocalizedException $e) {
                     $this->logger->addError($e->getMessage());
+
+                    $this->messageManager->addErrorMessage(__('Cannot synchronize customer cart'));
 
                     return $this->resultRedirectFactory->create()->setPath('checkout/cart');
                 }
@@ -152,6 +153,8 @@ class Sync extends Action
             $result = $this->sync->synchronizeCustomerCart($this->customerSession->getCustomerId(), $cartId);
 
             if (!$result) {
+                $this->messageManager->addErrorMessage(__('Cannot synchronize customer cart'));
+
                 return $this->resultRedirectFactory->create()->setPath('checkout/cart');
             }
         }
