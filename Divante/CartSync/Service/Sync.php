@@ -10,10 +10,8 @@ namespace Divante\CartSync\Service;
 
 use Magento\Checkout\Model\Session;
 use Magento\Customer\Api\CustomerRepositoryInterface;
-use Magento\Customer\Model\CustomerFactory;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Model\QuoteIdMask;
 use Magento\Quote\Model\QuoteIdMaskFactory;
@@ -86,7 +84,7 @@ class Sync implements SyncInterface
      *
      * @return SyncInterface|false
      */
-    public function synchronizeCustomerCart($customerId, $cartId): SyncInterface
+    public function synchronizeCustomerCart($customerId, $cartId)
     {
         try {
             $customer = $this->customerRepository->getById($customerId);
@@ -129,7 +127,7 @@ class Sync implements SyncInterface
      *
      * @return SyncInterface|false
      */
-    public function synchronizeGuestCart(string $cartId): SyncInterface
+    public function synchronizeGuestCart(string $cartId)
     {
         /** @var QuoteIdMask $quoteIdMask */
         $quoteIdMask = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id');
@@ -145,6 +143,8 @@ class Sync implements SyncInterface
 
             return false;
         }
+
+        $quote->collectTotals();
 
         $this->cartRepository->save($quote);
         $this->checkoutSession->replaceQuote($quote);
