@@ -16,7 +16,6 @@ use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Controller\Result\Json;
-use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Controller\ResultInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -78,8 +77,7 @@ class Sync extends Action
         $this->customerSession    = $customerSession;
         $this->tokenFactory       = $tokenFactory;
         $this->sync               = $sync;
-
-        $this->logger = $syncLoggerFactory->create();
+        $this->logger             = $syncLoggerFactory->create();
     }
 
     /**
@@ -94,39 +92,25 @@ class Sync extends Action
         $customerToken = $this->getRequest()->getParam('token');
         $cartId        = $this->getRequest()->getParam('cart');
 
-        if ($this->isGuestCart($cartId)) {
-            $result = $this->sync->synchronizeGuestCart($cartId);
+        /** @var Token $token */
+        $token = $this->tokenFactory->create()->loadByToken($customerToken);
 
-            if (!$result) {
-                $this->messageManager->addErrorMessage(__('Cannot synchronize guest cart'));
+        if ($this->isGuestCart($token)) {
+            if ($this->customerSession->isLoggedIn()) {
+                $guestToken = md5(microtime() . mt_rand());
 
-                return $this->resultRedirectFactory->create()->setPath('checkout/cart');
+                return $this->logoutCustomer($guestToken, $cartId);
             }
+
+            $this->sync->synchronizeGuestCart($cartId);
         } else {
-            /** @var Token $token */
-            $token = $this->tokenFactory->create()->loadByToken($customerToken);
-
-            if (!$this->isTokenValid($token)) {
-                $this->messageManager->addErrorMessage(__('Invalid token'));
-
-                return $this->resultRedirectFactory->create()->setPath('checkout/cart');
-            }
-
             $isCustomerLogged = false;
 
             if ($this->customerSession->isLoggedIn()) {
                 $isCustomerLogged = true;
 
                 if ($token->getCustomerId() !== $this->customerSession->getCustomerId()) {
-                    $this->customerSession->logout();
-
-                    return $this->_redirect(
-                        'vue/cart/sync',
-                        [
-                            'token' => $customerToken,
-                            'cart'  => $cartId,
-                        ]
-                    );
+                    return $this->logoutCustomer($customerToken, $cartId);
                 }
             }
 
@@ -135,13 +119,11 @@ class Sync extends Action
                     $customer = $this->customerRepository->getById($token->getCustomerId());
                 } catch (NoSuchEntityException $e) {
                     $this->logger->addError($e->getMessage());
-
                     $this->messageManager->addErrorMessage(__('Required customer doesn\'t exist'));
 
                     return $this->resultRedirectFactory->create()->setPath('checkout/cart');
                 } catch (LocalizedException $e) {
                     $this->logger->addError($e->getMessage());
-
                     $this->messageManager->addErrorMessage(__('Cannot synchronize customer cart'));
 
                     return $this->resultRedirectFactory->create()->setPath('checkout/cart');
@@ -150,26 +132,10 @@ class Sync extends Action
                 $this->customerSession->loginById($customer->getId());
             }
 
-            $result = $this->sync->synchronizeCustomerCart($this->customerSession->getCustomerId(), $cartId);
-
-            if (!$result) {
-                $this->messageManager->addErrorMessage(__('Cannot synchronize customer cart'));
-
-                return $this->resultRedirectFactory->create()->setPath('checkout/cart');
-            }
+            $this->sync->synchronizeCustomerCart($this->customerSession->getCustomerId(), $cartId);
         }
 
         return $this->resultRedirectFactory->create()->setPath('checkout/cart');
-    }
-
-    /**
-     * @param Token $token
-     *
-     * @return bool
-     */
-    private function isTokenValid(Token $token): bool
-    {
-        return $token->getId() || !$token->getRevoked() || $token->getCustomerId();
     }
 
     /**
@@ -178,26 +144,55 @@ class Sync extends Action
     private function hasRequestAllRequiredParams(): bool
     {
         return null !== $this->getRequest()->getParam('token')
-               && null !== $this->getRequest()->getParam('cart');
+               && !empty($this->getRequest()->getParam('cart'));
     }
 
     /**
-     * @param string $cartId
+     * @param Token $token
      *
      * @return bool
      */
-    private function isCustomerCart(string $cartId): bool
+    private function isCustomerCart(Token $token): bool
     {
-        return is_numeric($cartId);
+        return $this->isCustomerToken($token);
     }
 
     /**
-     * @param string $cartId
+     * @param Token $token
      *
      * @return bool
      */
-    private function isGuestCart(string $cartId): bool
+    private function isGuestCart(Token $token): bool
     {
-        return !$this->isCustomerCart($cartId);
+        return !$this->isCustomerCart($token);
+    }
+
+    /**
+     * @param Token $token
+     *
+     * @return bool
+     */
+    private function isCustomerToken(Token $token): bool
+    {
+        return $token->getId() && !$token->getRevoked() && $token->getCustomerId();
+    }
+
+    /**
+     * @param string $customerToken
+     * @param string $cartId
+     *
+     * @return ResponseInterface
+     */
+    private function logoutCustomer(string $customerToken, string $cartId): ResponseInterface
+    {
+        $this->customerSession->logout();
+
+        return $this->_redirect(
+            'vue/cart/sync',
+            [
+                'token' => $customerToken,
+                'cart'  => $cartId,
+            ]
+        );
     }
 }

@@ -12,7 +12,9 @@ use Magento\Checkout\Model\Session;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Message\ManagerInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Quote\Model\QuoteFactory;
 use Magento\Quote\Model\QuoteIdMask;
 use Magento\Quote\Model\QuoteIdMaskFactory;
 use Magento\Quote\Model\QuoteRepository;
@@ -24,10 +26,6 @@ use Monolog\Logger;
 class Sync implements SyncInterface
 {
 
-    /**
-     * @var CartRepositoryInterface
-     */
-    private $cartRepository;
     /**
      * @var Session
      */
@@ -41,6 +39,10 @@ class Sync implements SyncInterface
      */
     private $logger;
     /**
+     * @var ManagerInterface
+     */
+    private $messageManager;
+    /**
      * @var QuoteRepository
      */
     private $quoteRepository;
@@ -48,15 +50,25 @@ class Sync implements SyncInterface
      * @var QuoteIdMaskFactory
      */
     private $quoteIdMaskFactory;
+    /**
+     * @var QuoteFactory
+     */
+    private $quoteFactory;
+    /**
+     * @var CartRepositoryInterface
+     */
+    private $cartRepository;
 
     /**
      * Sync constructor.
      *
      * @param CartRepositoryInterface     $cartRepository
      * @param CustomerRepositoryInterface $customerRepository
+     * @param ManagerInterface            $messageManager
      * @param SyncLoggerFactory           $syncLoggerFactory
      * @param Session                     $checkoutSession
      * @param QuoteIdMaskFactory          $quoteIdMaskFactory
+     * @param QuoteFactory                $quoteFactory
      * @param QuoteRepository             $quoteRepository
      *
      * @throws \Exception
@@ -64,16 +76,20 @@ class Sync implements SyncInterface
     public function __construct(
         CartRepositoryInterface $cartRepository,
         CustomerRepositoryInterface $customerRepository,
+        ManagerInterface $messageManager,
         SyncLoggerFactory $syncLoggerFactory,
         Session $checkoutSession,
         QuoteIdMaskFactory $quoteIdMaskFactory,
+        QuoteFactory $quoteFactory,
         QuoteRepository $quoteRepository
     )
     {
         $this->cartRepository     = $cartRepository;
         $this->checkoutSession    = $checkoutSession;
         $this->customerRepository = $customerRepository;
+        $this->messageManager     = $messageManager;
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
+        $this->quoteFactory       = $quoteFactory;
         $this->quoteRepository    = $quoteRepository;
         $this->logger             = $syncLoggerFactory->create();
     }
@@ -86,11 +102,20 @@ class Sync implements SyncInterface
      */
     public function synchronizeCustomerCart($customerId, $cartId)
     {
+        if (!is_numeric($cartId)) {
+            $cartId = $this->getGuestQuoteId($cartId);
+
+            if (null === $cartId) {
+                $this->messageManager->addErrorMessage(__('Guest quote doen\'t exists'));
+
+                return false;
+            }
+        }
+
         try {
             $customer = $this->customerRepository->getById($customerId);
-            $cart     = $this->cartRepository->getForCustomer($customer->getId(), [$customer->getStoreId()]);
         } catch (NoSuchEntityException $e) {
-            $this->logger->addError($e->getMessage());
+            $this->messageManager->addErrorMessage(__('This customer doen\'t exists'));
 
             return false;
         } catch (LocalizedException $e) {
@@ -99,25 +124,42 @@ class Sync implements SyncInterface
             return false;
         }
 
-        if ($cartId !== $cart->getId()) {
-            try {
-                $currentQuote = $this->quoteRepository->get($cart->getId());
-                $newQuote     = $this->quoteRepository->getActive($cartId);
-            } catch (NoSuchEntityException $e) {
-                $this->logger->addError($e->getMessage());
-
-                return false;
-            }
-
-            $newQuote->setCustomer($customer);
-            $this->cartRepository->save($newQuote->merge($currentQuote)->collectTotals());
-
-            $this->checkoutSession->resetCheckout();
-            $this->checkoutSession->replaceQuote($newQuote);
-            $this->quoteRepository->delete($currentQuote);
+        try {
+            $customerQuote = $this->quoteRepository->getForCustomer($customer->getId());
+        } catch (NoSuchEntityException $e) {
+            $customerQuote = $this->quoteFactory->create();
         }
 
-        $this->checkoutSession->regenerateId();
+        $customerQuote->setStoreId($customer->getStoreId());
+
+        try {
+            $vueQuote = $this->quoteRepository->getActive($cartId);
+        } catch (NoSuchEntityException $e) {
+            $this->logger->addError($e->getMessage());
+
+            return false;
+        }
+
+        if ($customerQuote->getId() && $vueQuote->getId() !== $customerQuote->getId()) {
+            $vueQuote->assignCustomerWithAddressChange(
+                $customer,
+                $vueQuote->getBillingAddress(),
+                $vueQuote->getShippingAddress()
+            );
+            $this->quoteRepository->save($vueQuote->merge($customerQuote)->collectTotals());
+            $this->checkoutSession->replaceQuote($vueQuote);
+            $this->quoteRepository->delete($customerQuote);
+            $this->checkoutSession->regenerateId();
+        } else {
+            $customerQuote->assignCustomerWithAddressChange(
+                $customer,
+                $customerQuote->getBillingAddress(),
+                $customerQuote->getShippingAddress()
+            );
+            $customerQuote->collectTotals();
+            $this->quoteRepository->save($customerQuote);
+            $this->checkoutSession->replaceQuote($customerQuote);
+        }
 
         return $this;
     }
@@ -129,27 +171,39 @@ class Sync implements SyncInterface
      */
     public function synchronizeGuestCart(string $cartId)
     {
-        /** @var QuoteIdMask $quoteIdMask */
-        $quoteIdMask = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id');
+        $quoteIdMask = $this->getGuestQuoteId($cartId);
 
-        if (null === $quoteIdMask->getId()) {
+        if (null === $quoteIdMask) {
+            $this->messageManager->addErrorMessage(__('Guest quote doen\'t exists'));
+
             return false;
         }
 
         try {
-            $quote = $this->quoteRepository->getActive($quoteIdMask->getQuoteId());
+            $quote = $this->quoteRepository->getActive($quoteIdMask);
         } catch (NoSuchEntityException $e) {
-            $this->logger->addError($e->getMessage());
+            $this->messageManager->addErrorMessage(__('Guest quote doen\'t exists'));
 
             return false;
         }
 
-        $quote->collectTotals();
-
-        $this->cartRepository->save($quote);
+        $this->cartRepository->save($quote->collectTotals());
         $this->checkoutSession->replaceQuote($quote);
         $this->checkoutSession->regenerateId();
 
         return $this;
+    }
+
+    /**
+     * @param string $cartId
+     *
+     * @return int|null
+     */
+    private function getGuestQuoteId(string $cartId)
+    {
+        /** @var QuoteIdMask $quoteIdMask */
+        $quoteIdMask = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id');
+
+        return $quoteIdMask->getQuoteId();
     }
 }
