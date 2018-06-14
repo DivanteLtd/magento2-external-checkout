@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<!--
+/**
+ * @author         Maciej Daniłowicz <mdanilowicz@divante.pl>
+ * @package        Divante/CartSync
+ * @copyright      Copyright(C) 2018 Divante
+ * @license        See LICENSE.txt for license details.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="vuestorefront_config" translate="label" sortOrder="10">
+            <label>VueStorefront</label>
+        </tab>
+        <section id="vuestorefront_externalcheckout" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>External Checkout</label>
+            <tab>vuestorefront_config</tab>
+            <resource>Divante_CartSync::configuration</resource>
+            <group id="externalcheckout_general" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>General</label>
+                <field id="externalcheckout_link" translate="label" sortOrder="1" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Redirect to:</label>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

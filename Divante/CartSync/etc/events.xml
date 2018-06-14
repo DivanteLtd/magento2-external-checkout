@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<!--
+/**
+ * @author         Maciej Daniłowicz <mdanilowicz@divante.pl>
+ * @package        Divante/CartSync
+ * @copyright      Copyright(C) 2018 Divante
+ * @license        See LICENSE.txt for license details.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="checkout_onepage_controller_success_action">
+        <observer name="successObserver" instance="Divante\CartSync\Observer\SuccessObserver" />
+    </event>
+</config>
