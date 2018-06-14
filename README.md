@@ -19,6 +19,7 @@ Please add some items to the cart and then go to **Cart -> Go to chechkout**. Yo
 1. Please copy the `"Divante"` folder containing the extension to Your Magento modules directory (`app`)
 3. Run `php bin/magento setup:upgrade`
 4. Please install the [`vsf-external-checkout`](https://github.com/filrak/vsf-external-checkout) module for Vue Storefront. [See the instruction](https://github.com/filrak/vsf-external-checkout).
+5. Go to: Stores -> Configuration | VueStorefront -> External Checkout and set URL
 
 To test if Your extension works just fine, You can test the following URL:
 * http://your-base-magento-address.io/vue/cart/sync/token/{customer-api-token}/cart/{cartId}
