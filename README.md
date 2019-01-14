@@ -16,7 +16,7 @@ Please add some items to the cart and then go to **Cart -> Go to chechkout**. Yo
 ## Installation guide
 
 0. Integrate Your Magento2 instance with Vue Storefront: [tutorial](https://medium.com/@piotrkarwatka/vue-storefront-cart-totals-orders-integration-with-magento2-6fbe6860fcd), [video tutorial](https://www.youtube.com/watch?v=CtDXddsyxvM)
-1. Please copy the `"Divante"` folder containing the extension to Your Magento modules directory (`app`)
+1. Copy the module files from the repo to `app/code/Divante/CartSync`
 3. Run `php bin/magento setup:upgrade`
 4. Please install the [`vsf-external-checkout`](https://github.com/filrak/vsf-external-checkout) module for Vue Storefront. [See the instruction](https://github.com/filrak/vsf-external-checkout).
 5. Go to: Stores -> Configuration | VueStorefront -> External Checkout and set URL

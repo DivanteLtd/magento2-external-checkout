@@ -1,5 +1,5 @@
 {
-  "name": "magento/module-vue-cart-sync",
+  "name": "divante/magento2-vue-cart-sync",
   "description": "Synchronize Magento cart between Vue Storefront",
   "require": {
     "php": "7.0.2|7.0.4|~7.0.6|~7.1.0",
