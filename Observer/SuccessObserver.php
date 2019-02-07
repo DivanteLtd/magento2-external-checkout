@@ -8,8 +8,8 @@
 
 namespace Divante\CartSync\Observer;
 
+use Divante\CartSync\Model\Config;
 use Magento\Framework\Event\ObserverInterface;
-use Magento\Framework\App\Config\ScopeConfigInterface;
 
 /**
  * Class SuccessObserver
@@ -19,24 +19,14 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 class SuccessObserver implements ObserverInterface
 {
     /**
-     * @var string
+     * @var Config
      */
-    private $confPath = 'vuestorefront_externalcheckout/externalcheckout_general/externalcheckout_link';
+    protected $config;
 
-    /**
-     * @var ScopeConfigInterface
-     */
-    protected $scopeConfig;
-
-    /**
-     * SuccessObserver constructor.
-     *
-     * @param ScopeConfigInterface $scopeConfig
-     */
     public function __construct(
-        ScopeConfigInterface $scopeConfig
+        Config $config
     ) {
-        $this->scopeConfig = $scopeConfig;
+        $this->config = $config;
     }
 
     /**
@@ -44,10 +34,7 @@ class SuccessObserver implements ObserverInterface
      */
     public function execute(\Magento\Framework\Event\Observer $observer)
     {
-        $url = $this->scopeConfig->getValue(
-            $this->confPath,
-            \Magento\Store\Model\ScopeInterface::SCOPE_STORE
-        );
+        $url = $this->config->getVueStorefrontSuccessUrl();
 
         if ($url && $url !== '') {
             if (!(strpos($url, "http://") !== false || strpos($url, "https://") !== false)) {

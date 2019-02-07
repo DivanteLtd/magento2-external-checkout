@@ -8,6 +8,7 @@
 
 namespace Divante\CartSync\Controller\Cart;
 
+use Divante\CartSync\Model\Config;
 use Divante\CartSync\Service\SyncInterface;
 use Divante\CartSync\Service\SyncLoggerFactory;
 use Magento\Customer\Api\CustomerRepositoryInterface;
@@ -28,56 +29,60 @@ use Monolog\Logger;
  */
 class Sync extends Action
 {
-
     /**
      * @var CustomerRepositoryInterface
      */
-    private $customerRepository;
+    protected $customerRepository;
     /**
      * @var CustomerSession
      */
-    private $customerSession;
+    protected $customerSession;
     /**
      * @var Logger
      */
-    private $logger;
+    protected $logger;
     /**
      * @var TokenFactory
      */
-    private $tokenFactory;
+    protected $tokenFactory;
     /**
      * @var SyncInterface
      */
-    private $sync;
+    protected $sync;
+    /**
+     * @var Config
+     */
+    protected $config;
 
     /**
      * Sync constructor.
      *
-     * @param Context                     $context
+     * @param Config $config
+     * @param Context $context
      * @param CustomerRepositoryInterface $customerRepository
-     * @param CustomerSession             $customerSession
-     * @param SyncInterface               $sync
-     * @param SyncLoggerFactory           $syncLoggerFactory
-     * @param TokenFactory                $tokenFactory
+     * @param CustomerSession $customerSession
+     * @param SyncInterface $sync
+     * @param SyncLoggerFactory $syncLoggerFactory
+     * @param TokenFactory $tokenFactory
      *
      * @throws \Exception
      */
     public function __construct(
+        Config $config,
         Context $context,
         CustomerRepositoryInterface $customerRepository,
         CustomerSession $customerSession,
         SyncInterface $sync,
         SyncLoggerFactory $syncLoggerFactory,
         TokenFactory $tokenFactory
-    )
-    {
+    ) {
         parent::__construct($context);
-
         $this->customerRepository = $customerRepository;
-        $this->customerSession    = $customerSession;
-        $this->tokenFactory       = $tokenFactory;
-        $this->sync               = $sync;
-        $this->logger             = $syncLoggerFactory->create();
+        $this->customerSession = $customerSession;
+        $this->tokenFactory = $tokenFactory;
+        $this->sync = $sync;
+        $this->logger = $syncLoggerFactory->create();
+        $this->config = $config;
     }
 
     /**
@@ -85,12 +90,14 @@ class Sync extends Action
      */
     public function execute()
     {
+        $checkoutPath = $this->config->getCheckoutPath();
+
         if (!$this->hasRequestAllRequiredParams()) {
-            return $this->resultRedirectFactory->create()->setPath('checkout/cart');
+            return $this->resultRedirectFactory->create()->setPath($checkoutPath);
         }
 
         $customerToken = $this->getRequest()->getParam('token');
-        $cartId        = $this->getRequest()->getParam('cart');
+        $cartId = $this->getRequest()->getParam('cart');
 
         /** @var Token $token */
         $token = $this->tokenFactory->create()->loadByToken($customerToken);
@@ -121,12 +128,12 @@ class Sync extends Action
                     $this->logger->addError($e->getMessage());
                     $this->messageManager->addErrorMessage(__('Required customer doesn\'t exist'));
 
-                    return $this->resultRedirectFactory->create()->setPath('checkout/cart');
+                    return $this->resultRedirectFactory->create()->setPath($checkoutPath);
                 } catch (LocalizedException $e) {
                     $this->logger->addError($e->getMessage());
                     $this->messageManager->addErrorMessage(__('Cannot synchronize customer cart'));
 
-                    return $this->resultRedirectFactory->create()->setPath('checkout/cart');
+                    return $this->resultRedirectFactory->create()->setPath($checkoutPath);
                 }
 
                 $this->customerSession->loginById($customer->getId());
@@ -135,7 +142,7 @@ class Sync extends Action
             $this->sync->synchronizeCustomerCart($this->customerSession->getCustomerId(), $cartId);
         }
 
-        return $this->resultRedirectFactory->create()->setPath('checkout/cart');
+        return $this->resultRedirectFactory->create()->setPath($checkoutPath);
     }
 
     /**
@@ -144,7 +151,7 @@ class Sync extends Action
     private function hasRequestAllRequiredParams(): bool
     {
         return null !== $this->getRequest()->getParam('token')
-               && !empty($this->getRequest()->getParam('cart'));
+            && !empty($this->getRequest()->getParam('cart'));
     }
 
     /**
@@ -191,7 +198,7 @@ class Sync extends Action
             'vue/cart/sync',
             [
                 'token' => $customerToken,
-                'cart'  => $cartId,
+                'cart' => $cartId,
             ]
         );
     }
