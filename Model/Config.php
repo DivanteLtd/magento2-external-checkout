@@ -1,11 +1,6 @@
 <?php
 declare(strict_types=1);
 
-/**
- * @author tjitse (Vendic)
- * Created on 07/12/2018 15:01
- */
-
 namespace Divante\CartSync\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
